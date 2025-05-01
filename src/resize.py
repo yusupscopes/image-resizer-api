@@ -2,7 +2,12 @@ import json
 import boto3
 import os
 import io
+import logging
 from PIL import Image
+
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 s3 = boto3.client("s3")
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "")
@@ -16,7 +21,9 @@ SIZES = {
 }
 
 def resize_and_upload(image_bytes, original_key):
-    image = Image.open(io.BytesIO(image_bytes))
+    buffer_image = io.BytesIO(image_bytes)
+    buffer_image.seek(0)
+    image = Image.open(buffer_image)
 
     for label, size in SIZES.items():
         img_copy = image.copy()
@@ -34,20 +41,25 @@ def resize_and_upload(image_bytes, original_key):
             ContentType="image/jpeg"
         )
 
-def handler(event, context):
-    for record in event["Records"]:
-        bucket = record["s3"]["bucket"]["name"]
-        key = record["s3"]["object"]["key"]
+def handler(event):
+    try:
+        logger.info(f"Processing event: {json.dumps(event)}")
+        for record in event["Records"]:
+            bucket = record["s3"]["bucket"]["name"]
+            key = record["s3"]["object"]["key"]
 
-        if not key.startswith("uploads/"):
-            continue
+            if not key.startswith("uploads/"):
+                continue
 
-        response = s3.get_object(Bucket=bucket, Key=key)
-        image_bytes = response["Body"].read()
+            response = s3.get_object(Bucket=bucket, Key=key)
+            image_bytes = response["Body"].read()
 
-        resize_and_upload(image_bytes, key)
+            resize_and_upload(image_bytes, key)
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps("Image resized successfully")
-    }
+        return {
+            "statusCode": 200,
+            "body": json.dumps("Image resized successfully")
+        }
+    except Exception as e:
+        logger.error(f"Error processing event: {str(e)}", exc_info=True)
+        return {"statusCode": 500, "body": json.dumps({"message": "Error processing event!"})}
