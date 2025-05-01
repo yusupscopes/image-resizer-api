@@ -41,17 +41,6 @@ Resources:
       FunctionName: ImageResizeFunction
       Handler: src.resize.handler
       CodeUri: ../
-      Events:
-        S3Trigger:
-          Type: S3
-          Properties:
-            Bucket: !Ref ImageBucket
-            Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: uploads/
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageBucket
@@ -69,7 +58,7 @@ Resources:
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${AWS::StackName}-images"
+      BucketName: !Sub "${AWS::StackName}-${AWS::AccountId}-images"
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: "s3:ObjectCreated:*"
