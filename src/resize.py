@@ -3,7 +3,7 @@ import boto3
 import os
 import io
 import logging
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 # Configure logging
 logger = logging.getLogger()
@@ -23,7 +23,15 @@ SIZES = {
 def resize_and_upload(image_bytes, original_key):
     buffer_image = io.BytesIO(image_bytes)
     buffer_image.seek(0)
-    image = Image.open(buffer_image)
+    
+    try:
+        image = Image.open(buffer_image)
+        image.verify()  # Check image integrity first
+        buffer_image.seek(0)  # Rewind after verify, needed for thumbnailing
+        image = Image.open(buffer_image).convert("RGB")
+    except UnidentifiedImageError:
+        logger.error(f"Unrecognized image format: {original_key}")
+        return
 
     for label, size in SIZES.items():
         img_copy = image.copy()
@@ -41,7 +49,7 @@ def resize_and_upload(image_bytes, original_key):
             ContentType="image/jpeg"
         )
 
-def handler(event):
+def handler(event, context):
     try:
         logger.info(f"Processing event: {json.dumps(event)}")
         for record in event["Records"]:
@@ -50,8 +58,14 @@ def handler(event):
 
             if not key.startswith("uploads/"):
                 continue
+            
+            if not key.lower().endswith((".jpg", ".jpeg", ".png")):
+                logger.info(f"Skipping unsupported file: {key}")
+                continue
+
 
             response = s3.get_object(Bucket=bucket, Key=key)
+            logger.info(f"S3 object content type: {response.get('ContentType')}")
             image_bytes = response["Body"].read()
 
             resize_and_upload(image_bytes, key)

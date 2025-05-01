@@ -24,7 +24,7 @@ handler = Mangum(app)
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
     try:
-        logger.info(f"Processing file: {json.dumps(file)}")
+        logger.info(f"Processing file: {file}")
         file_extension = file.filename.split('.')[-1]
         file_key = f"{UPLOAD_PREFIX}{uuid4()}.{file_extension}"
 
