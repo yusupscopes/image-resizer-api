@@ -1,0 +1,8 @@
+boto3==1.38.6
+fastapi==0.115.12
+mangum==0.19.0
+pillow==11.2.1
+pytest==8.3.5
+python-multipart==0.0.20
+uvicorn==0.34.2
+watchtower==3.4.0
